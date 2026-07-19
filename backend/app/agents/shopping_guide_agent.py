@@ -304,15 +304,24 @@ class MultiAgentShoppingAdvisor:
         }
 
         try:
-            # 运行图状态机 (同步调用)
-            final_state = self.graph.invoke(initial_state)
+            from langchain_community.callbacks import get_openai_callback
+
+            # 运行图状态机并统计 Token 消耗 (同步调用)
+            with get_openai_callback() as cb:
+                final_state = self.graph.invoke(initial_state)
+                prompt_tokens = cb.prompt_tokens
+                completion_tokens = cb.completion_tokens
+
             report_data = final_state.get("final_report")
 
             if not report_data:
                 raise ValueError("状态机执行结束，未产出有效报告")
 
             # 最终检验格式并还原为 Pydantic 传回路由层
-            return ShoppingReport(**report_data)
+            report = ShoppingReport(**report_data)
+            report._prompt_tokens = prompt_tokens
+            report._completion_tokens = completion_tokens
+            return report
 
         except Exception as e:
             logger.error(f"❌ [LangGraph 链路执行崩溃]: {e}")

@@ -15,9 +15,12 @@ current_concurrent = 0
 lock = Lock()
 
 
-def calculate_llm_cost(token_count: int = 2500) -> float:
-    """简历对齐：展现对模型调用成本的精细化监控"""
-    return round(token_count / 1000 * 0.02, 4)
+def calculate_llm_cost(prompt_tokens: int, completion_tokens: int) -> float:
+    """根据实际 Token 消耗和配置单价计算模型调用成本"""
+    settings = get_settings()
+    input_cost = (prompt_tokens / 1000) * settings.llm_input_price_per_k
+    output_cost = (completion_tokens / 1000) * settings.llm_output_price_per_k
+    return round(input_cost + output_cost, 4)
 
 
 router = APIRouter(tags=["电商导购助手"])
@@ -39,6 +42,9 @@ async def generate_shopping_report(request: ShoppingRequest):
 
         # 🌟 执行多 Agent 协同流
         raw_result = agent.generate_shopping_report(request)
+        
+        prompt_tokens = getattr(raw_result, "_prompt_tokens", 0)
+        completion_tokens = getattr(raw_result, "_completion_tokens", 0)
 
         # 🌟 修复关键：将结果统一转化为字典处理
         # 这样无论 Agent 返回的是 Pydantic 模型还是 dict，后续逻辑都统一
@@ -51,7 +57,7 @@ async def generate_shopping_report(request: ShoppingRequest):
 
         # 链路指标计算 (Full-Link Metrics)
         latency_ms = int((time.time() - start_time) * 1000)
-        cost_cny = calculate_llm_cost()
+        cost_cny = calculate_llm_cost(prompt_tokens, completion_tokens)
 
         # 注入监控数据（对接前端 Result.vue）
         report_data["metrics"] = {
