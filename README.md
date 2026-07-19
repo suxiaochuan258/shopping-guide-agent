@@ -23,7 +23,7 @@ graph TD
     %% 节点定义
     User[用户偏好表单输入] -->|JSON POST| API[FastAPI 后端接口 /api/shop/generate]
     
-    subgraph 后端多智能体工作流 (HelloAgents 驱动)
+    subgraph "后端多智能体工作流 (HelloAgents 驱动)"
         API -->|1. 触发任务| Research["🔍 商品调研专家 (SimpleAgent)"]
         Research -->|联网检索产品及价格| Tavily[Tavily Search API]
         Tavily -->|结构化参数| Research
