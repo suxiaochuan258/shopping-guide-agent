@@ -30,4 +30,5 @@ uv>=0.8.0
 
 # Other tools
 python-dateutil>=2.8.2
+duckduckgo-search
 huggingface_hub>=0.25.0
