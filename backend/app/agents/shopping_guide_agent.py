@@ -24,7 +24,7 @@ settings = get_settings()
 tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
 
 def search_real_products(query: str, free_text_input: str) -> str:
-    """基于 Tavily 联网检索商品实时信息"""
+    """基于 Tavily 联网检索商品实时信息，失败则自动降级使用 DuckDuckGo 检索"""
     try:
         enhanced_query = f"{query} 2026年最新款 在售 官方价格 详细参数 真机图片"
         if free_text_input.strip():
@@ -39,7 +39,7 @@ def search_real_products(query: str, free_text_input: str) -> str:
         )
 
         result_text = "搜索结果：\n"
-        results = response.get("results", []) if response else []
+        results = response.get("results") or [] if response else []
         for idx, item in enumerate(results):
             result_text += f"\n--- 结果 {idx+1} ---\n"
             result_text += f"标题：{item['title']}\n"
@@ -48,13 +48,32 @@ def search_real_products(query: str, free_text_input: str) -> str:
             result_text += f"来源：{item['url']}\n"
 
         result_text += "\n📷 商品图片链接：\n"
-        images = response.get("images", []) if response else []
+        images = response.get("images") or [] if response else []
         for img in images[:6]:
             result_text += f"- {img}\n"
 
         return result_text
     except Exception as e:
         logger.error(f"[Tavily搜索异常] {str(e)}")
+        
+        # 降级使用 DuckDuckGo 网页检索
+        try:
+            logger.info(f"🔌 [Tavily 检索失效] 正在降级调用 DuckDuckGo 网页检索...")
+            from duckduckgo_search import DDGS
+            with DDGS() as ddgs:
+                ddg_query = f"{query} 2026款 价格 参数"
+                results = ddgs.text(ddg_query, max_results=6)
+                if results:
+                    result_text = "DuckDuckGo 检索结果：\n"
+                    for idx, res in enumerate(results):
+                        result_text += f"\n--- 结果 {idx+1} ---\n"
+                        result_text += f"标题：{res.get('title')}\n"
+                        result_text += f"摘要：{res.get('body')}\n"
+                        result_text += f"来源：{res.get('href')}\n"
+                    return result_text
+        except Exception as ddg_err:
+            logger.error(f"[DuckDuckGo搜索异常] {ddg_err}")
+
         return "搜索服务暂时不可用，请稍后重试"
 
 # ============ 2. 状态定义 ============
@@ -215,15 +234,14 @@ def advisor_node(state: AgentState) -> Dict[str, Any]:
         return {"final_report": None}
 
 def search_product_image(product_name: str) -> Optional[str]:
-    """通过 Tavily 搜索真实的商品图片，若失败则降级使用 Unsplash 兜底"""
+    """通过 Tavily 搜索真实的商品图片，若失败则降级使用 DuckDuckGo，最后使用 Unsplash 兜底"""
     # 1. 尝试使用 Tavily 搜图 (最精准的真实商品图)
     try:
         settings = get_settings()
         if settings.TAVILY_API_KEY:
             tavily = TavilyClient(api_key=settings.TAVILY_API_KEY)
-            # 搜索时加上“真机图片”以获取真实数码评测或官网图
             res = tavily.search(query=f"{product_name} 真机图片 官方图", max_results=3, include_images=True)
-            images = res.get("images", [])
+            images = res.get("images") or [] if res else []
             if images and isinstance(images, list):
                 for img in images:
                     if img.startswith("http"):
@@ -232,7 +250,22 @@ def search_product_image(product_name: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"[Tavily图片搜索异常] {e}")
 
-    # 2. 兜底使用 Unsplash
+    # 2. 降级使用 DuckDuckGo 免 Key 搜图
+    try:
+        from duckduckgo_search import DDGS
+        with DDGS() as ddgs:
+            # 搜索时加“真机图片”过滤掉无关杂图
+            results = ddgs.images(f"{product_name} 真机图片", max_results=3)
+            if results:
+                for res in results:
+                    img = res.get("image")
+                    if img and img.startswith("http"):
+                        logger.info(f"📸 [DuckDuckGo 搜图成功] 商品: {product_name} -> {img}")
+                        return img
+    except Exception as e:
+        logger.error(f"[DDG图片搜索异常] {e}")
+
+    # 3. 最终由 Unsplash 摄影图兜底
     try:
         unsplash_svc = get_unsplash_service()
         img = unsplash_svc.get_photo_url(product_name)
