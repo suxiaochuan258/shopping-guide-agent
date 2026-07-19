@@ -64,10 +64,9 @@
           <a-list :data-source="shoppingReport.recommended_products" :grid="{ gutter: 16, column: 2 }">
             <template #renderItem="{ item, index }">
               <a-list-item>
-                <a-card :title="item.name" size="small" class="product-card">
+                <a-card :title="`${index + 1}. ${item.name}`" size="small" class="product-card">
                   <div class="product-image-wrapper">
                     <img :src="getProductImage(item, index)" class="product-image" @error="handleImageError" />
-                    <div class="product-badge">{{ index + 1 }}</div>
                     <div class="price-tag">¥{{ item.price_info.current_price }}</div>
                   </div>
                   <p><strong>🏷️ 品牌:</strong> {{ item.brand }}</p>
