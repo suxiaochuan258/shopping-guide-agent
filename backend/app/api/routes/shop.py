@@ -49,26 +49,6 @@ async def generate_shopping_report(request: ShoppingRequest):
         else:
             report_data = raw_result
 
-        # 图像补全 (子 Agent 工具调用模拟)
-        unsplash_svc = get_unsplash_service()
-        products = report_data.get("recommended_products", [])
-
-        for product in products:
-            try:
-                # 兼容字典访问
-                name = product.get("name", "")
-                img_url = await asyncio.to_thread(unsplash_svc.get_photo_url, name)
-                product["main_image"] = img_url or ""
-            except Exception:
-                product["main_image"] = ""
-
-            # 如果 AI 没给链接，或者给的是空字符串、井号，则手动生成搜索链接
-            if not product.get("buy_link") or product.get("buy_link") in ["", "#", None]:
-                search_name = product.get("name") or request.product_category
-                # 默认补全淘宝搜索链接，面试时可以说这是“引导式转化”
-                product["buy_link"] = f"https://s.taobao.com/search?q={quote(str(search_name))}"
-                logger.info(f"🔗 链路监控：已为 {search_name} 自动补全购买链接")
-
         # 链路指标计算 (Full-Link Metrics)
         latency_ms = int((time.time() - start_time) * 1000)
         cost_cny = calculate_llm_cost()

@@ -86,7 +86,7 @@ class ProductDetail(BaseModel):
     name: str = Field(..., description="商品完整名称")
     brand: str = Field(..., description="品牌名")
     main_image: str = Field(default="", description="主图链接")
-    image_url: str = None
+    image_url: Optional[str] = None
     specs: List[ProductSpec] = Field(default=[], description="详细规格参数列表")
     price_info: PriceHistory = Field(..., description="价格分析")
     sentiment: ReviewSentiment = Field(..., description="口碑画像")
