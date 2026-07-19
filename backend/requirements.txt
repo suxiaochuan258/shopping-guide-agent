@@ -1,5 +1,6 @@
 # LangChain & LangGraph Framework
 langchain-core
+langchain-community
 langchain-openai
 langgraph
 tavily-python

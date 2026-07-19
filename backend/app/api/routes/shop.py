@@ -4,6 +4,7 @@ import time
 from threading import Lock
 from urllib.parse import quote
 from fastapi import APIRouter
+from ...config import get_settings
 from ...models.schemas import ShoppingRequest
 from ...agents.shopping_guide_agent import get_shopping_advisor_agent
 from ...services.unsplash_service import get_unsplash_service
