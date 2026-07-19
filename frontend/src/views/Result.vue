@@ -221,8 +221,19 @@ const exportAsPDF = async () => {
 .metrics-card { margin-bottom: 20px; border-left: 5px solid #722ed1; }
 .metric-desc { font-size: 12px; color: #999; margin-top: 5px; }
 .overview-content { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.product-image { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
-.product-image-wrapper { position: relative; }
+.product-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+.product-image-wrapper {
+  position: relative;
+  height: 180px;
+  background: #f7f9fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 12px;
+}
 .price-tag { position: absolute; top: 10px; right: 10px; background: #ff4d4f; color: white; padding: 2px 8px; border-radius: 4px; }
 .price-content { display: flex; justify: space-around; padding: 20px 0; }
 .suggest-item { margin-bottom: 10px; font-size: 15px; }
