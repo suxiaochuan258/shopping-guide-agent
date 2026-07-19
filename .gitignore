@@ -1,0 +1,36 @@
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*.so
+**/.venv
+**/venv/
+**/env/
+
+# Node.js
+**/node_modules/
+**/dist/
+**/.eslintcache
+
+# Env / API keys (避免泄露 Token)
+**/.env
+**/.env.local
+**/.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Logs & Temp files
+**/logs/
+**/*.log
+**/temp/
+**/tmp/
+
+# OS
+.DS_Store
+Thumbs.db
