@@ -214,22 +214,48 @@ def advisor_node(state: AgentState) -> Dict[str, Any]:
         logger.error(f"[AdvisorNode 解析报错] {e}")
         return {"final_report": None}
 
+def search_product_image(product_name: str) -> Optional[str]:
+    """通过 Tavily 搜索真实的商品图片，若失败则降级使用 Unsplash 兜底"""
+    # 1. 尝试使用 Tavily 搜图 (最精准的真实商品图)
+    try:
+        settings = get_settings()
+        if settings.TAVILY_API_KEY:
+            tavily = TavilyClient(api_key=settings.TAVILY_API_KEY)
+            # 搜索时加上“真机图片”以获取真实数码评测或官网图
+            res = tavily.search(query=f"{product_name} 真机图片 官方图", max_results=3, include_images=True)
+            images = res.get("images", [])
+            if images and isinstance(images, list):
+                for img in images:
+                    if img.startswith("http"):
+                        logger.info(f"📸 [Tavily 搜图成功] 商品: {product_name} -> {img}")
+                        return img
+    except Exception as e:
+        logger.error(f"[Tavily图片搜索异常] {e}")
+
+    # 2. 兜底使用 Unsplash
+    try:
+        unsplash_svc = get_unsplash_service()
+        img = unsplash_svc.get_photo_url(product_name)
+        if img:
+            logger.info(f"📸 [Unsplash 搜图成功] 商品: {product_name} -> {img}")
+            return img
+    except Exception as e:
+        logger.error(f"[Unsplash图片搜索异常] {e}")
+
+    return None
+
 def image_link_node(state: AgentState) -> Dict[str, Any]:
     report = state.get("final_report")
     if not report:
         return {}
 
     products = report.get("recommended_products", [])
-    unsplash_svc = get_unsplash_service()
     
     for product in products:
         name = product.get("name", "")
-        # 获取缩略图
-        try:
-            img_url = unsplash_svc.get_photo_url(name)
-            product["main_image"] = img_url or ""
-        except Exception:
-            product["main_image"] = ""
+        # 调用搜图引擎
+        img_url = search_product_image(name)
+        product["main_image"] = img_url or ""
             
         # 补全淘宝外链
         if not product.get("buy_link") or product.get("buy_link") in ["", "#", None]:
