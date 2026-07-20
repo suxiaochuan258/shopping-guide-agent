@@ -68,7 +68,7 @@ class ProductSpec(BaseModel):
 class PriceHistory(BaseModel):
     """价格走势信息（修复：价格非负，优化字段）"""
     current_price: float = Field(..., ge=0, description="当前售价")
-    historical_low: float = Field(..., ge=0, description="历史最低价")
+    historical_low: Optional[float] = Field(default=None, description="历史最低价")
     is_good_deal: bool = Field(default=False, description="当前是否值得购买")
     discount_tag: Optional[str] = Field(default="", description="优惠活动标签")
 
