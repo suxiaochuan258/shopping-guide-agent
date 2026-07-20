@@ -6,8 +6,10 @@ import re
 from typing import Dict, Any, List, Optional, TypedDict
 from urllib.parse import quote
 
+import uuid
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 
 from ..services.llm_service import get_llm
 from ..services.unsplash_service import get_unsplash_service
@@ -362,16 +364,18 @@ workflow.add_conditional_edges(
 )
 workflow.add_edge("retry_feedback", "research")
 
-# 编译 Graph 实例
-compiled_graph = workflow.compile()
+# 编译 Graph 实例 (挂载短期记忆 MemorySaver)
+memory_saver = MemorySaver()
+compiled_graph = workflow.compile(checkpointer=memory_saver)
 
 # ============ 6. 包装为 MultiAgentShoppingAdvisor 单例接口 ============
 class MultiAgentShoppingAdvisor:
     def __init__(self):
         self.graph = compiled_graph
-        logger.info("✅ LangGraph 智能导购状态图加载成功")
+        logger.info("✅ LangGraph 智能导购状态图加载成功（短期会话记忆组件已挂载）")
 
     def generate_shopping_report(self, request: ShoppingRequest) -> ShoppingReport:
+        session_id = request.session_id or str(uuid.uuid4())
         initial_state = {
             "request": request,
             "retry_count": 0,
@@ -384,9 +388,12 @@ class MultiAgentShoppingAdvisor:
         try:
             from langchain_community.callbacks import get_openai_callback
 
-            # 运行图状态机并统计 Token 消耗 (同步调用)
+            # 运行图状态机并统计 Token 消耗与状态持久化 (同步调用)
             with get_openai_callback() as cb:
-                final_state = self.graph.invoke(initial_state)
+                final_state = self.graph.invoke(
+                    initial_state,
+                    config={"configurable": {"thread_id": session_id}}
+                )
                 prompt_tokens = cb.prompt_tokens
                 completion_tokens = cb.completion_tokens
 
@@ -399,6 +406,7 @@ class MultiAgentShoppingAdvisor:
             report = ShoppingReport(**report_data)
             report._prompt_tokens = prompt_tokens
             report._completion_tokens = completion_tokens
+            report._session_id = session_id
             return report
 
         except Exception as e:

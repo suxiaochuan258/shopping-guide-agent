@@ -48,6 +48,7 @@ class ShoppingRequest(BaseModel):
     brand_preference: List[str] = Field(default=[], description="品牌倾向", example=["华为", "苹果", "小米"])
     core_features: List[str] = Field(default=[], description="必须具备的功能", example=["防水", "无线充电", "1T内存"])
     free_text_input: Optional[str] = Field(default="", description="其他个性化要求")
+    session_id: Optional[str] = Field(default=None, description="会话ID（用于短期记忆 Thread ID）")
 
     # 验证预算合法性
     @field_validator("budget_range")

@@ -46,6 +46,7 @@ async def generate_shopping_report(request: ShoppingRequest):
         
         prompt_tokens = getattr(raw_result, "_prompt_tokens", 0)
         completion_tokens = getattr(raw_result, "_completion_tokens", 0)
+        session_id = getattr(raw_result, "_session_id", request.session_id)
 
         # 🌟 修复关键：将结果统一转化为字典处理
         # 这样无论 Agent 返回的是 Pydantic 模型还是 dict，后续逻辑都统一
@@ -55,6 +56,8 @@ async def generate_shopping_report(request: ShoppingRequest):
             report_data = raw_result.dict()
         else:
             report_data = raw_result
+
+        report_data["session_id"] = session_id
 
         # 链路指标计算 (Full-Link Metrics)
         latency_ms = int((time.time() - start_time) * 1000)
