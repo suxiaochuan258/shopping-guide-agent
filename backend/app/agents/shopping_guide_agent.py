@@ -26,9 +26,12 @@ tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
 def search_real_products(query: str, free_text_input: str) -> str:
     """基于 Tavily 联网检索商品实时信息，失败则自动降级使用 DuckDuckGo 检索"""
     try:
-        enhanced_query = f"{query} 2026年最新款 在售 官方价格 详细参数 真机图片"
-        if free_text_input.strip():
-            enhanced_query += f" {free_text_input.strip()}"
+        # 优先将用户的具体个性化需求（如 iPhone 17）放在检索词最前面
+        text_clean = free_text_input.replace("想要", "").replace("需要", "").strip()
+        if text_clean:
+            enhanced_query = f"{text_clean} {query} 2026款 在售 官方价格 详细参数"
+        else:
+            enhanced_query = f"{query} 2026年最新款 在售 官方价格 详细参数 真机图片"
 
         logger.info(f"🔍 正在检索实时数据: {enhanced_query}")
         response = tavily_client.search(
