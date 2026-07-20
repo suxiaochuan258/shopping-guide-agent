@@ -158,17 +158,17 @@ const compareColumns = computed(() => {
   // 1. 从后端返回的decision_matrix第一行，提取真实的商品列名
   const backendProductNames = Object.keys(shoppingReport.value.decision_matrix[0]).filter(key => key !== '项目')
 
-  // 2. 为每个前端推荐商品，找到最匹配的后端列名（模糊匹配前10个核心字符）
-  const productColumns = shoppingReport.value.recommended_products.map((p: any) => {
-    // 双向模糊匹配：忽略冒号、引号、后缀等细微差别
+  // 2. 为每个前端推荐商品，找到最匹配的后端列名（多重模糊与索引兜底）
+  const productColumns = shoppingReport.value.recommended_products.map((p: any, idx: number) => {
     const matchedName = backendProductNames.find(backendName =>
-      backendName.includes(p.name.substring(0, 10)) ||
-      p.name.includes(backendName.substring(0, 10))
-    ) || p.name // 兜底：匹配失败用原名称
+      p.name === backendName ||
+      backendName.includes(p.name.substring(0, 4)) ||
+      p.name.includes(backendName.substring(0, 4))
+    ) || backendProductNames[idx] || p.name
 
     return {
       title: p.name,
-      dataIndex: matchedName, // 用匹配到的后端真实列名
+      dataIndex: matchedName,
       key: p.product_id || p.name,
       align: 'center'
     }
