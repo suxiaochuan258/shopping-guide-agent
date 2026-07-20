@@ -26,6 +26,7 @@
             <a-menu-item key="compare"><span>📊 参数对比</span></a-menu-item>
             <a-menu-item key="price"><span>💰 价格分析</span></a-menu-item>
             <a-menu-item key="suggest"><span>💡 购买建议</span></a-menu-item>
+            <a-menu-item key="followup"><span>💬 追问与调整</span></a-menu-item>
           </a-menu>
         </a-affix>
       </div>
@@ -106,6 +107,23 @@
             <div class="suggest-item">🎯 <strong>总结：</strong>{{ shoppingReport.overall_summary }}</div>
           </div>
         </a-card>
+
+        <!-- 🌟 新增：连续追问与偏好调整卡片 -->
+        <a-card id="followup" title="💬 连续追问与偏好调整" :bordered="false" class="followup-card" style="margin-top: 20px;">
+          <div class="quick-tags" style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <a-tag color="blue" style="cursor: pointer;" @click="fillPrompt('把预算降低到 3000 元以内')">💰 降预算到 3000 内</a-tag>
+            <a-tag color="purple" style="cursor: pointer;" @click="fillPrompt('哪款拍照和画质最好？')">📷 哪款拍照最好</a-tag>
+            <a-tag color="green" style="cursor: pointer;" @click="fillPrompt('只要白色的款式')">🎨 只要白色款式</a-tag>
+          </div>
+          <a-input-search
+            v-model:value="followUpText"
+            placeholder="输入您的追问要求，如：把预算调低重搜、对比第一款和第二款的续航..."
+            enter-button="🚀 发送追问"
+            size="large"
+            :loading="submitting"
+            @search="handleFollowUp"
+          />
+        </a-card>
       </div>
     </div>
     <a-empty v-else description="暂无导购报告">
@@ -124,9 +142,54 @@ import {
 } from '@ant-design/icons-vue'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { generateShoppingReport } from '@/services/api'
 const router = useRouter()
 const shoppingReport = ref<any>(null)
 const activeSection = ref('overview')
+
+// 🌟 连续追问相关状态
+const followUpText = ref('')
+const submitting = ref(false)
+
+const fillPrompt = (txt: string) => {
+  followUpText.value = txt
+}
+
+const handleFollowUp = async () => {
+  if (!followUpText.value.trim()) {
+    message.warning('请输入追问内容')
+    return
+  }
+
+  submitting.value = true
+  try {
+    const rawReq = shoppingReport.value?.request || {}
+    const payload = {
+      product_category: shoppingReport.value?.category || '智能手机',
+      budget_range: rawReq.budget_range || { min: 0, max: 20000 },
+      brand_preference: rawReq.brand_preference || [],
+      usage_scenarios: rawReq.usage_scenarios || [],
+      core_features: rawReq.core_features || [],
+      free_text_input: followUpText.value.trim(),
+      session_id: shoppingReport.value?.session_id
+    }
+
+    const res = await generateShoppingReport(payload as any)
+    if (res && res.success && res.data) {
+      res.data.request = payload
+      shoppingReport.value = res.data
+      sessionStorage.setItem('shoppingReport', JSON.stringify(res.data))
+      followUpText.value = ''
+      message.success('追问成功，已为您更新导购报告！')
+    } else {
+      message.error('追问生成失败，请重试')
+    }
+  } catch (err: any) {
+    message.error(err.message || '追问异常')
+  } finally {
+    submitting.value = false
+  }
+}
 // 1. 挂载时读取数据
 onMounted(() => {
   const data = sessionStorage.getItem('shoppingReport')
