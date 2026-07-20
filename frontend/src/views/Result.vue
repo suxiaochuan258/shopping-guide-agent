@@ -66,7 +66,7 @@
               <a-list-item>
                 <a-card :title="`${index + 1}. ${item.name}`" size="small" class="product-card">
                   <div class="product-image-wrapper">
-                    <img :src="getProductImage(item, index)" class="product-image" @error="handleImageError" />
+                    <img :src="getProductImage(item, index)" class="product-image" referrerpolicy="no-referrer" @error="handleImageError" />
                     <div class="price-tag">¥{{ item.price_info.current_price }}</div>
                   </div>
                   <p><strong>🏷️ 品牌:</strong> {{ item.brand }}</p>

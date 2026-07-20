@@ -243,13 +243,13 @@ def advisor_node(state: AgentState) -> Dict[str, Any]:
         return {"final_report": None}
 
 def search_product_image(product_name: str) -> Optional[str]:
-    """通过 Tavily 搜索真实的商品图片，若失败则降级使用 DuckDuckGo，最后使用 Unsplash 兜底"""
-    # 1. 尝试使用 Tavily 搜图 (最精准的真实商品图)
+    """通过 Tavily 搜索真实的商品外观图，若失败则降级使用 DuckDuckGo，最后使用 Unsplash 兜底"""
+    # 1. 尝试使用 Tavily 搜图 (最精准的官方产品图)
     try:
         settings = get_settings()
         if settings.TAVILY_API_KEY:
             tavily = TavilyClient(api_key=settings.TAVILY_API_KEY)
-            res = tavily.search(query=f"{product_name} 真机图片 官方图", max_results=3, include_images=True)
+            res = tavily.search(query=f"{product_name} 官方外观图 高清产品图", max_results=5, include_images=True)
             images = res.get("images") or [] if res else []
             if images and isinstance(images, list):
                 for img in images:
@@ -263,8 +263,8 @@ def search_product_image(product_name: str) -> Optional[str]:
     try:
         from duckduckgo_search import DDGS
         with DDGS() as ddgs:
-            # 搜索时加“真机图片”过滤掉无关杂图
-            results = ddgs.images(f"{product_name} 真机图片", max_results=3)
+            # 搜索时加“官方外观图”过滤掉新闻杂图
+            results = ddgs.images(f"{product_name} 官方外观图", max_results=5)
             if results:
                 for res in results:
                     img = res.get("image")
