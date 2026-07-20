@@ -318,11 +318,21 @@ def retry_feedback_node(state: AgentState) -> Dict[str, Any]:
 # ============ 5. 编排状态图 (LangGraph Compiler) ============
 def route_after_validation(state: AgentState) -> str:
     report = state.get("final_report")
-    # 质量校验：报告必须生成，且包含产品推荐
     if not report or not report.get("recommended_products"):
-        if state.get("retry_count", 0) < 2:
-            return "retry"
-        return "fallback"
+        state["error_feedback"] = "产品推荐列表为空，请重新生成。"
+        return "retry" if state.get("retry_count", 0) < 2 else "fallback"
+
+    # 🌟 Reflection 核心：检测是否包含虚构/占位品牌
+    fake_brand_keywords = ["A品牌", "某品牌", "品牌A", "未知品牌", "虚拟", "X200"]
+    products = report.get("recommended_products", [])
+    for p in products:
+        b_name = str(p.get("brand", ""))
+        p_name = str(p.get("name", ""))
+        if any(kw in b_name or kw in p_name for kw in fake_brand_keywords):
+            logger.warning(f"🚨 [Reflection 触发] 拦截到虚构商品: {p_name} ({b_name})")
+            state["error_feedback"] = f"生成的商品 '{p_name}' 包含虚构品牌词，违反真实性原则！请剔除假商品，重新推荐真实存在的品牌（如宝丽来、富士、佳能、索尼等）。"
+            return "retry" if state.get("retry_count", 0) < 2 else "fallback"
+
     return "end"
 
 workflow = StateGraph(AgentState)
