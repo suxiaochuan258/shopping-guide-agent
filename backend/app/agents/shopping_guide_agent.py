@@ -161,7 +161,11 @@ def research_node(state: AgentState) -> Dict[str, Any]:
     
     # AI 整理
     llm = get_llm()
-    prompt = f"用户需求：类别={req.product_category}，预算={req.budget_range['min']}-{req.budget_range['max']}元。\n"
+    prompt = f"用户需求：类别={req.product_category}，预算={req.budget_range['min']}-{req.budget_range['max']}元。"
+    if req.free_text_input.strip():
+        prompt += f" 个性化偏好/指定型号：{req.free_text_input.strip()}（请务必优先围绕此偏好筛选商品）\n"
+    else:
+        prompt += "\n"
     if state.get("error_feedback"):
         prompt += f"上一次校验报错：{state['error_feedback']}\n请在本次整理中进行针对性修复。\n"
     prompt += f"\n联网检索结果如下：\n{search_results}"
@@ -189,6 +193,8 @@ def advisor_node(state: AgentState) -> Dict[str, Any]:
     
     prompt = f"""请整合以下商品调研数据与口碑分析，生成一份结构化且完美的导购报告：
 用户需求：类别={req.product_category}，预算范围={req.budget_range['min']}-{req.budget_range['max']}元。
+特定偏好/指定型号：{req.free_text_input if req.free_text_input.strip() else '无'}
+【重要规则】：如果用户指定了具体型号或系列（如 iPhone 17 系列），推荐列表的第一位必须是该指定型号/系列，且列表中应优先展示该系列的细分型号（如标准版、Pro、Pro Max）！
 
 【商品调研原始信息】
 {state['research_raw']}
