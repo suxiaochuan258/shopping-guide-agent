@@ -26,6 +26,7 @@
             <a-menu-item key="compare"><span>📊 参数对比</span></a-menu-item>
             <a-menu-item key="price"><span>💰 价格分析</span></a-menu-item>
             <a-menu-item key="suggest"><span>💡 购买建议</span></a-menu-item>
+            <a-menu-item key="followup"><span>💬 追问与调整</span></a-menu-item>
           </a-menu>
         </a-affix>
       </div>
@@ -64,10 +65,9 @@
           <a-list :data-source="shoppingReport.recommended_products" :grid="{ gutter: 16, column: 2 }">
             <template #renderItem="{ item, index }">
               <a-list-item>
-                <a-card :title="item.name" size="small" class="product-card">
+                <a-card :title="`${index + 1}. ${item.name}`" size="small" class="product-card">
                   <div class="product-image-wrapper">
-                    <img :src="getProductImage(item, index)" class="product-image" @error="handleImageError" />
-                    <div class="product-badge">{{ index + 1 }}</div>
+                    <img :src="getProductImage(item, index)" class="product-image" referrerpolicy="no-referrer" @error="handleImageError" />
                     <div class="price-tag">¥{{ item.price_info.current_price }}</div>
                   </div>
                   <p><strong>🏷️ 品牌:</strong> {{ item.brand }}</p>
@@ -107,6 +107,23 @@
             <div class="suggest-item">🎯 <strong>总结：</strong>{{ shoppingReport.overall_summary }}</div>
           </div>
         </a-card>
+
+        <!-- 🌟 新增：连续追问与偏好调整卡片 -->
+        <a-card id="followup" title="💬 连续追问与偏好调整" :bordered="false" class="followup-card" style="margin-top: 20px;">
+          <div class="quick-tags" style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <a-tag color="blue" style="cursor: pointer;" @click="fillPrompt('把预算降低到 3000 元以内')">💰 降预算到 3000 内</a-tag>
+            <a-tag color="purple" style="cursor: pointer;" @click="fillPrompt('哪款拍照和画质最好？')">📷 哪款拍照最好</a-tag>
+            <a-tag color="green" style="cursor: pointer;" @click="fillPrompt('只要白色的款式')">🎨 只要白色款式</a-tag>
+          </div>
+          <a-input-search
+            v-model:value="followUpText"
+            placeholder="输入您的追问要求，如：把预算调低重搜、对比第一款和第二款的续航..."
+            enter-button="🚀 发送追问"
+            size="large"
+            :loading="submitting"
+            @search="handleFollowUp"
+          />
+        </a-card>
       </div>
     </div>
     <a-empty v-else description="暂无导购报告">
@@ -125,9 +142,54 @@ import {
 } from '@ant-design/icons-vue'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { generateShoppingReport } from '@/services/api'
 const router = useRouter()
 const shoppingReport = ref<any>(null)
 const activeSection = ref('overview')
+
+// 🌟 连续追问相关状态
+const followUpText = ref('')
+const submitting = ref(false)
+
+const fillPrompt = (txt: string) => {
+  followUpText.value = txt
+}
+
+const handleFollowUp = async () => {
+  if (!followUpText.value.trim()) {
+    message.warning('请输入追问内容')
+    return
+  }
+
+  submitting.value = true
+  try {
+    const rawReq = shoppingReport.value?.request || {}
+    const payload = {
+      product_category: shoppingReport.value?.category || '智能手机',
+      budget_range: rawReq.budget_range || { min: 0, max: 20000 },
+      brand_preference: rawReq.brand_preference || [],
+      usage_scenarios: rawReq.usage_scenarios || [],
+      core_features: rawReq.core_features || [],
+      free_text_input: followUpText.value.trim(),
+      session_id: shoppingReport.value?.session_id
+    }
+
+    const res = await generateShoppingReport(payload as any)
+    if (res && res.success && res.data) {
+      res.data.request = payload
+      shoppingReport.value = res.data
+      sessionStorage.setItem('shoppingReport', JSON.stringify(res.data))
+      followUpText.value = ''
+      message.success('追问成功，已为您更新导购报告！')
+    } else {
+      message.error('追问生成失败，请重试')
+    }
+  } catch (err: any) {
+    message.error(err.message || '追问异常')
+  } finally {
+    submitting.value = false
+  }
+}
 // 1. 挂载时读取数据
 onMounted(() => {
   const data = sessionStorage.getItem('shoppingReport')
@@ -159,17 +221,17 @@ const compareColumns = computed(() => {
   // 1. 从后端返回的decision_matrix第一行，提取真实的商品列名
   const backendProductNames = Object.keys(shoppingReport.value.decision_matrix[0]).filter(key => key !== '项目')
 
-  // 2. 为每个前端推荐商品，找到最匹配的后端列名（模糊匹配前10个核心字符）
-  const productColumns = shoppingReport.value.recommended_products.map((p: any) => {
-    // 双向模糊匹配：忽略冒号、引号、后缀等细微差别
+  // 2. 为每个前端推荐商品，找到最匹配的后端列名（多重模糊与索引兜底）
+  const productColumns = shoppingReport.value.recommended_products.map((p: any, idx: number) => {
     const matchedName = backendProductNames.find(backendName =>
-      backendName.includes(p.name.substring(0, 10)) ||
-      p.name.includes(backendName.substring(0, 10))
-    ) || p.name // 兜底：匹配失败用原名称
+      p.name === backendName ||
+      backendName.includes(p.name.substring(0, 4)) ||
+      p.name.includes(backendName.substring(0, 4))
+    ) || backendProductNames[idx] || p.name
 
     return {
       title: p.name,
-      dataIndex: matchedName, // 用匹配到的后端真实列名
+      dataIndex: matchedName,
       key: p.product_id || p.name,
       align: 'center'
     }
@@ -221,8 +283,19 @@ const exportAsPDF = async () => {
 .metrics-card { margin-bottom: 20px; border-left: 5px solid #722ed1; }
 .metric-desc { font-size: 12px; color: #999; margin-top: 5px; }
 .overview-content { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.product-image { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
-.product-image-wrapper { position: relative; }
+.product-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+.product-image-wrapper {
+  position: relative;
+  height: 180px;
+  background: #f7f9fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 12px;
+}
 .price-tag { position: absolute; top: 10px; right: 10px; background: #ff4d4f; color: white; padding: 2px 8px; border-radius: 4px; }
 .price-content { display: flex; justify: space-around; padding: 20px 0; }
 .suggest-item { margin-bottom: 10px; font-size: 15px; }

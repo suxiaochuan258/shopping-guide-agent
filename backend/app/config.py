@@ -40,6 +40,10 @@ class Settings(BaseSettings):
 
     TAVILY_API_KEY: str = ""
 
+    # Token 计费配置 (元/千 Token)
+    llm_input_price_per_k: float = 0.01
+    llm_output_price_per_k: float = 0.02
+
     # 日志配置（不用改）
     log_level: str = "INFO"
 

@@ -48,6 +48,7 @@ class ShoppingRequest(BaseModel):
     brand_preference: List[str] = Field(default=[], description="品牌倾向", example=["华为", "苹果", "小米"])
     core_features: List[str] = Field(default=[], description="必须具备的功能", example=["防水", "无线充电", "1T内存"])
     free_text_input: Optional[str] = Field(default="", description="其他个性化要求")
+    session_id: Optional[str] = Field(default=None, description="会话ID（用于短期记忆 Thread ID）")
 
     # 验证预算合法性
     @field_validator("budget_range")
@@ -67,7 +68,7 @@ class ProductSpec(BaseModel):
 class PriceHistory(BaseModel):
     """价格走势信息（修复：价格非负，优化字段）"""
     current_price: float = Field(..., ge=0, description="当前售价")
-    historical_low: float = Field(..., ge=0, description="历史最低价")
+    historical_low: Optional[float] = Field(default=None, description="历史最低价")
     is_good_deal: bool = Field(default=False, description="当前是否值得购买")
     discount_tag: Optional[str] = Field(default="", description="优惠活动标签")
 
@@ -86,7 +87,7 @@ class ProductDetail(BaseModel):
     name: str = Field(..., description="商品完整名称")
     brand: str = Field(..., description="品牌名")
     main_image: str = Field(default="", description="主图链接")
-    image_url: str = None
+    image_url: Optional[str] = None
     specs: List[ProductSpec] = Field(default=[], description="详细规格参数列表")
     price_info: PriceHistory = Field(..., description="价格分析")
     sentiment: ReviewSentiment = Field(..., description="口碑画像")

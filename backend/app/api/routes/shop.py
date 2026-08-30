@@ -4,6 +4,7 @@ import time
 from threading import Lock
 from urllib.parse import quote
 from fastapi import APIRouter
+from ...config import get_settings
 from ...models.schemas import ShoppingRequest
 from ...agents.shopping_guide_agent import get_shopping_advisor_agent
 from ...services.unsplash_service import get_unsplash_service
@@ -15,9 +16,12 @@ current_concurrent = 0
 lock = Lock()
 
 
-def calculate_llm_cost(token_count: int = 2500) -> float:
-    """简历对齐：展现对模型调用成本的精细化监控"""
-    return round(token_count / 1000 * 0.02, 4)
+def calculate_llm_cost(prompt_tokens: int, completion_tokens: int) -> float:
+    """根据实际 Token 消耗和配置单价计算模型调用成本"""
+    settings = get_settings()
+    input_cost = (prompt_tokens / 1000) * settings.llm_input_price_per_k
+    output_cost = (completion_tokens / 1000) * settings.llm_output_price_per_k
+    return round(input_cost + output_cost, 4)
 
 
 router = APIRouter(tags=["电商导购助手"])
@@ -39,6 +43,10 @@ async def generate_shopping_report(request: ShoppingRequest):
 
         # 🌟 执行多 Agent 协同流
         raw_result = agent.generate_shopping_report(request)
+        
+        prompt_tokens = getattr(raw_result, "_prompt_tokens", 0)
+        completion_tokens = getattr(raw_result, "_completion_tokens", 0)
+        session_id = getattr(raw_result, "_session_id", request.session_id)
 
         # 🌟 修复关键：将结果统一转化为字典处理
         # 这样无论 Agent 返回的是 Pydantic 模型还是 dict，后续逻辑都统一
@@ -49,29 +57,11 @@ async def generate_shopping_report(request: ShoppingRequest):
         else:
             report_data = raw_result
 
-        # 图像补全 (子 Agent 工具调用模拟)
-        unsplash_svc = get_unsplash_service()
-        products = report_data.get("recommended_products", [])
-
-        for product in products:
-            try:
-                # 兼容字典访问
-                name = product.get("name", "")
-                img_url = await asyncio.to_thread(unsplash_svc.get_photo_url, name)
-                product["main_image"] = img_url or ""
-            except Exception:
-                product["main_image"] = ""
-
-            # 如果 AI 没给链接，或者给的是空字符串、井号，则手动生成搜索链接
-            if not product.get("buy_link") or product.get("buy_link") in ["", "#", None]:
-                search_name = product.get("name") or request.product_category
-                # 默认补全淘宝搜索链接，面试时可以说这是“引导式转化”
-                product["buy_link"] = f"https://s.taobao.com/search?q={quote(str(search_name))}"
-                logger.info(f"🔗 链路监控：已为 {search_name} 自动补全购买链接")
+        report_data["session_id"] = session_id
 
         # 链路指标计算 (Full-Link Metrics)
         latency_ms = int((time.time() - start_time) * 1000)
-        cost_cny = calculate_llm_cost()
+        cost_cny = calculate_llm_cost(prompt_tokens, completion_tokens)
 
         # 注入监控数据（对接前端 Result.vue）
         report_data["metrics"] = {
