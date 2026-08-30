@@ -1,4 +1,21 @@
-# 🛒 Shopping Guide Agent｜AI 智能电商导购助手
+<div align="center">
+
+# 🛒 Shopping Guide Agent
+
+**基于 LangGraph、FastAPI 与 Vue 3 的全栈 AI 智能电商导购助手，支持实时商品检索、多智能体分析、连续追问与导购报告导出。**
+
+[English](README_EN.md) · [中文](README.md)
+
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-1C3C3C)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)
+![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+
+</div>
+
+---
 
 一个基于 **LangGraph、LangChain、FastAPI 与 Vue 3** 构建的全栈 AI 导购项目。系统会根据商品类别、预算、品牌倾向和自然语言需求检索在售商品，由多个职责明确的智能体依次完成商品调研、口碑分析与购买决策，并生成可交互、可导出的结构化导购报告。
 
@@ -87,7 +104,8 @@ shopping-guide-agent/
 │   └── vite.config.ts
 ├── test.py                               # Agent 调用示例
 ├── test_tavily.py                        # Tavily 连通性测试
-└── README.md
+├── README.md                             # 中文文档
+└── README_EN.md                          # English documentation
 ```
 
 ## 快速开始
